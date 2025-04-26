@@ -1,151 +1,464 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>FleetTrack - Real-Time Tracking</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FleetTrack - Real-Time Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet" />
   <style>
     body {
       font-family: 'Inter', sans-serif;
-      background-image: url('https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1950&q=80');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
       color: white;
+      background-color: #0f172a;
     }
-    #map {
-      height: 60vh;
+    #map { height: 50vh; width: 100%; border-radius: 1rem; }
+    .section { background-color: rgba(15, 23, 42, 0.85); padding: 1rem; border-radius: 1rem; margin-top: 1rem; }
+    .chart-container {
+      position: relative;
+      height: 250px;
       width: 100%;
-      border-radius: 1rem;
     }
-    .navbar a:hover {
-      color: #f97316;
-      transform: scale(1.05);
-      transition: all 0.3s ease;
+    /* Scroll for alerts and lists */
+    #alerts, #vehicleList, #tripHistory, #geofenceList, #maintenanceList {
+      max-height: 150px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #f97316 transparent;
+    }
+    #alerts::-webkit-scrollbar, #vehicleList::-webkit-scrollbar, #tripHistory::-webkit-scrollbar, #geofenceList::-webkit-scrollbar, #maintenanceList::-webkit-scrollbar {
+      width: 6px;
+    }
+    #alerts::-webkit-scrollbar-thumb, #vehicleList::-webkit-scrollbar-thumb, #tripHistory::-webkit-scrollbar-thumb, #geofenceList::-webkit-scrollbar-thumb, #maintenanceList::-webkit-scrollbar-thumb {
+      background-color: #f97316;
+      border-radius: 3px;
     }
   </style>
 </head>
-<body class="bg-black bg-opacity-70 text-white">
-
-  <!-- Page Wrapper (80% Width) -->
-  <div class="w-4/5 mx-auto">
-
-    <!-- Navigation Bar -->
-    <header class="bg-black text-white p-4 flex justify-between items-center shadow-md rounded-b-lg">
-      <div class="flex items-center">
-        <span class="ml-2 text-xl font-bold">FleetTrack</span>
+<body class="bg-slate-900">
+  <div class="w-11/12 mx-auto min-h-screen flex flex-col">
+    <header class="bg-black bg-opacity-90 text-white p-4 flex justify-between items-center shadow-md rounded-b-lg sticky top-0 z-30">
+      <div class="flex items-center space-x-2">
+        <i class="fas fa-truck-moving text-orange-500 text-2xl"></i>
+        <span class="text-xl font-bold select-none">FleetTrack</span>
       </div>
-      <nav class="space-x-4 navbar">
-        <a class="hover:text-orange-400 transition" href="index.html">Home</a>
-        <a class="hover:text-orange-400 transition" href="profile.html">Sign Up</a>
-        <a class="hover:text-orange-400 transition" href="contact.html">Login</a>
+      <nav class="space-x-6 text-white text-sm sm:text-base">
+        <a href="#" class="hover:text-orange-400 transition-colors duration-200">Home</a>
+        <a href="#" class="hover:text-orange-400 transition-colors duration-200">Sign Up</a>
+        <a href="#" class="hover:text-orange-400 transition-colors duration-200">Login</a>
       </nav>
     </header>
+    <main class="p-4 flex-grow overflow-y-auto">
+      <h1 class="text-3xl font-bold text-center mb-6 select-none">Real-Time Vehicle Dashboard</h1>
 
-    <!-- Main Content -->
-    <main class="p-6">
-      <h1 class="text-3xl font-bold mb-4 text-center">Real-Time Vehicle Tracking</h1>
-
-      <!-- Map -->
-      <div id="map" class="shadow-lg border-2 border-gray-200 mb-6"></div>
-
-      <!-- Dummy Vehicle ID Tracking -->
-      <div class="mt-6 flex flex-col items-center">
-        <input 
-          type="text" 
-          id="vehicleInput"
-          placeholder="Enter Vehicle ID (e.g., VEH123)"
-          class="p-3 w-80 rounded-lg text-black shadow-md border border-gray-300 mb-4"
-        />
-        <button 
-          onclick="trackByVehicleId()"
-          class="bg-green-500 text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:bg-green-600 transition"
-        >
-          Track by Vehicle ID
-        </button>
+      <div class="relative rounded-xl overflow-hidden shadow-lg">
+        <img alt="A busy city road with multiple vehicles, showing a fleet tracking theme with digital overlays and map elements" class="w-full h-[50vh] object-cover brightness-50 rounded-xl absolute top-0 left-0 z-0" src="https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1950&q=80" />
+        <div id="map" class="relative z-10 rounded-xl shadow-lg"></div>
       </div>
-    </main>
 
-    <!-- Footer -->
-    <footer class="bg-black bg-opacity-80 text-white py-10 mt-10 rounded-t-lg">
-      <div class="text-center">
-        <p class="text-2xl font-semibold mb-3">FleetTrack - Track Smarter, Not Harder</p>
-        <p class="text-base mb-6">&copy; 2025 FleetTrack. All rights reserved.</p>
-        <div class="flex justify-center space-x-8">
-          <a href="#" class="text-orange-500 hover:text-orange-400 transition">
-            <i class="fab fa-google text-3xl"></i>
-          </a>
-          <a href="#" class="text-orange-500 hover:text-orange-400 transition">
-            <i class="fab fa-facebook text-3xl"></i>
-          </a>
-          <a href="#" class="text-orange-500 hover:text-orange-400 transition">
-            <i class="fab fa-twitter text-3xl"></i>
-          </a>
+      <div class="flex flex-col sm:flex-row justify-center items-center my-6 gap-4">
+        <input id="vehicleInput" type="text" placeholder="Enter Vehicle ID (e.g., VEH123)" class="p-3 rounded text-black w-full max-w-md focus:outline-none focus:ring-2 focus:ring-orange-400" />
+        <button onclick="trackByVehicleId()" class="bg-green-500 px-6 py-3 rounded hover:bg-green-600 transition-colors duration-200 text-white font-semibold w-full max-w-xs">Track My Vehicle</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <section class="section">
+          <h2 class="text-xl font-bold mb-3 select-none flex items-center gap-2">
+            <i class="fas fa-list-ul text-orange-400"></i> Vehicle List
+          </h2>
+          <ul id="vehicleList" class="list-disc list-inside space-y-1 text-sm"></ul>
+        </section>
+
+        <section class="section">
+          <h2 class="text-xl font-bold mb-3 select-none flex items-center gap-2">
+            <i class="fas fa-history text-orange-400"></i> Trip History
+          </h2>
+          <ul id="tripHistory" class="list-disc list-inside space-y-1 text-sm"></ul>
+        </section>
+
+        <section class="section">
+          <h2 class="text-xl font-bold mb-3 select-none flex items-center gap-2">
+            <i class="fas fa-tools text-orange-400"></i> Maintenance Schedule
+          </h2>
+          <ul id="maintenanceList" class="list-disc list-inside space-y-1 text-sm"></ul>
+        </section>
+
+        <section class="section">
+          <h2 class="text-xl font-bold mb-3 select-none flex items-center gap-2">
+            <i class="fas fa-map-marker-alt text-orange-400"></i> Geofencing
+          </h2>
+          <p class="text-sm mb-3">Monitor areas with virtual boundaries. Alerts when vehicles enter/exit.</p>
+          <button onclick="setGeofence()" class="bg-yellow-500 px-5 py-2 rounded hover:bg-yellow-600 transition-colors duration-200 text-black font-semibold w-full max-w-xs">Set Geofence</button>
+          <ul id="geofenceList" class="list-disc list-inside space-y-1 text-sm mt-3"></ul>
+        </section>
+
+        <section class="section col-span-1 md:col-span-2">
+          <h2 class="text-xl font-bold mb-3 select-none flex items-center gap-2">
+            <i class="fas fa-bell text-orange-400"></i> Alerts & Notifications
+          </h2>
+          <ul id="alerts" class="list-disc list-inside space-y-1 text-sm"></ul>
+        </section>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <section class="section">
+          <h2 class="text-xl font-bold mb-4 select-none flex items-center gap-2">
+            <i class="fas fa-tachometer-alt text-orange-400"></i> Vehicle Speed Record
+          </h2>
+          <div class="chart-container">
+            <canvas id="speedChart"></canvas>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="text-xl font-bold mb-4 select-none flex items-center gap-2">
+            <i class="fas fa-gas-pump text-orange-400"></i> Fuel Consumption (L)
+          </h2>
+          <div class="chart-container">
+            <canvas id="fuelChart"></canvas>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="text-xl font-bold mb-4 select-none flex items-center gap-2">
+            <i class="fas fa-route text-orange-400"></i> Distance Covered (km)
+          </h2>
+          <div class="chart-container">
+            <canvas id="distanceChart"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <section class="section mt-8">
+        <h2 class="text-xl font-bold mb-4 select-none flex items-center gap-2">
+          <i class="fas fa-user-cog text-orange-400"></i> Fleet Manager Controls
+        </h2>
+        <div class="flex flex-col sm:flex-row gap-4">
+          <button onclick="sendMaintenanceReminder()" class="bg-indigo-600 px-6 py-3 rounded hover:bg-indigo-700 transition-colors duration-200 text-white font-semibold w-full sm:w-auto flex items-center justify-center gap-2">
+            <i class="fas fa-envelope"></i> Send Maintenance Reminder
+          </button>
+          <button onclick="generateReport()" class="bg-blue-600 px-6 py-3 rounded hover:bg-blue-700 transition-colors duration-200 text-white font-semibold w-full sm:w-auto flex items-center justify-center gap-2">
+            <i class="fas fa-file-alt"></i> Generate Fleet Report
+          </button>
+          <button onclick="refreshAllData()" class="bg-green-600 px-6 py-3 rounded hover:bg-green-700 transition-colors duration-200 text-white font-semibold w-full sm:w-auto flex items-center justify-center gap-2">
+            <i class="fas fa-sync-alt"></i> Refresh All Data
+          </button>
         </div>
-      </div>
+      </section>
+    </main>
+    <footer class="text-center mt-10 py-6 bg-black bg-opacity-90 rounded-t-lg select-none">
+      <p class="text-lg text-gray-300">© 2025 FleetTrack. All rights reserved.</p>
     </footer>
+  </div>
 
-  </div> <!-- End of Wrapper -->
-
-  <!-- Scripts -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    const defaultLatLng = [28.6139, 77.2090]; // New Delhi
-    const map = L.map('map').setView(defaultLatLng, 13);
+    // Sample data for vehicles, trips, alerts, maintenance, geofences
+    const vehicleListData = [
+      { id: 'VEH123', status: 'Active', driver: 'John Doe', speed: 70, fuel: 12, distance: 120 },
+      { id: 'VEH456', status: 'Inactive', driver: 'Jane Smith', speed: 0, fuel: 0, distance: 0 },
+      { id: 'VEH789', status: 'Active', driver: 'Alice Johnson', speed: 55, fuel: 8, distance: 90 },
+      { id: 'VEH321', status: 'Active', driver: 'Bob Brown', speed: 65, fuel: 10, distance: 110 },
+      { id: 'VEH654', status: 'Inactive', driver: 'Charlie Davis', speed: 0, fuel: 0, distance: 0 }
+    ];
+
+    const tripData = [
+      { date: '2025-04-20', route: 'Delhi → Gurgaon', distance: 35 },
+      { date: '2025-04-19', route: 'Delhi → Noida', distance: 22 },
+      { date: '2025-04-18', route: 'LPU → Jalandhar', distance: 25 },
+      { date: '2025-04-17', route: 'LPU → Ludhiana', distance: 40 },
+      { date: '2025-04-16', route: 'LPU → Chandigarh', distance: 95 }
+    ];
+
+    const alertsData = [
+      'Speeding Alert: VEH123 at 80 km/h',
+      'Idle Alert: VEH456 idle for 20 mins',
+      'Route Deviation: VEH789 left assigned path',
+      'Maintenance Due: VEH321 in 3 days',
+      'Fuel Low: VEH654 below 10%'
+    ];
+
+    const maintenanceData = [
+      { vehicle: 'VEH123', dueDate: '2025-05-01', type: 'Oil Change' },
+      { vehicle: 'VEH789', dueDate: '2025-04-28', type: 'Tire Rotation' },
+      { vehicle: 'VEH321', dueDate: '2025-05-05', type: 'Brake Inspection' }
+    ];
+
+    const geofenceData = [
+      { name: 'LPU Campus', lat: 31.2539, lng: 75.7033, radius: 500 },
+      { name: 'Phagwara City Center', lat: 31.2245, lng: 75.7711, radius: 700 }
+    ];
+
+    // Initialize map centered on Lovely Professional University, Phagwara
+    const lpuLatLng = [31.2539, 75.7033];
+    const map = L.map('map').setView(lpuLatLng, 14);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    const vehicleIcon = L.icon({
-      iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
-      iconSize: [40, 40],
-      iconAnchor: [20, 40],
-      popupAnchor: [0, -40]
-    });
+    // Markers and geofences
+    let vehicleMarker = L.marker(lpuLatLng).addTo(map).bindPopup('Vehicle location will appear here').openPopup();
+    let geofenceCircles = [];
 
-    let marker = L.marker(defaultLatLng, { icon: vehicleIcon }).addTo(map)
-      .bindPopup('Vehicle is here (New Delhi)').openPopup();
-
-    function trackByVehicleId() {
-      const vehicleId = document.getElementById("vehicleInput").value.trim().toUpperCase();
-      if (vehicleId === "VEH123") {
-        alert("Vehicle ID found! Starting location tracking via geolocation (simulated)");
-
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const ipLat = position.coords.latitude;
-              const ipLng = position.coords.longitude;
-
-              marker.setLatLng([ipLat, ipLng])
-                .bindPopup(`Tracking Vehicle: ${vehicleId}`).openPopup();
-              map.setView([ipLat, ipLng], 15);
-
-              setInterval(() => {
-                // Simulate movement by generating random offsets
-                const latOffset = (Math.random() - 0.5) * 0.001;
-                const lngOffset = (Math.random() - 0.5) * 0.001;
-                const newLat = marker.getLatLng().lat + latOffset;
-                const newLng = marker.getLatLng().lng + lngOffset;
-                marker.setLatLng([newLat, newLng]);
-                map.panTo([newLat, newLng]); // Move the map view to the new position
-              }, 3000);
-            },
-            () => {
-              alert("Unable to fetch location.");
-            }
-          );
-        } else {
-          alert("Geolocation not supported.");
-        }
-      } else {
-        alert("Vehicle ID not found!");
-      }
+    function drawGeofences() {
+      geofenceCircles.forEach(c => map.removeLayer(c));
+      geofenceCircles = [];
+      geofenceData.forEach(gf => {
+        const circle = L.circle([gf.lat, gf.lng], {
+          color: '#f97316',
+          fillColor: '#f97316',
+          fillOpacity: 0.2,
+          radius: gf.radius
+        }).addTo(map);
+        circle.bindPopup(`<strong>${gf.name}</strong><br>Radius: ${gf.radius} meters`);
+        geofenceCircles.push(circle);
+      });
     }
+    drawGeofences();
+
+    // Populate lists
+    function populateLists() {
+      const vList = document.getElementById('vehicleList');
+      vList.innerHTML = vehicleListData.map(v => 
+        `<li><strong>ID:</strong> ${v.id}, <strong>Status:</strong> ${v.status}, <strong>Driver:</strong> ${v.driver}</li>`
+      ).join('');
+
+      const tHistory = document.getElementById('tripHistory');
+      tHistory.innerHTML = tripData.map(t => 
+        `<li><strong>Date:</strong> ${t.date}, <strong>Route:</strong> ${t.route}, <strong>Distance:</strong> ${t.distance} km</li>`
+      ).join('');
+
+      const aList = document.getElementById('alerts');
+      aList.innerHTML = alertsData.map(a => `<li>${a}</li>`).join('');
+
+      const mList = document.getElementById('maintenanceList');
+      mList.innerHTML = maintenanceData.map(m => 
+        `<li><strong>Vehicle:</strong> ${m.vehicle}, <strong>Due:</strong> ${m.dueDate}, <strong>Type:</strong> ${m.type}</li>`
+      ).join('');
+
+      const gList = document.getElementById('geofenceList');
+      gList.innerHTML = geofenceData.map(g => 
+        `<li><strong>${g.name}</strong> - Radius: ${g.radius} meters</li>`
+      ).join('');
+    }
+
+    // Chart instances
+    let speedChart, fuelChart, distanceChart;
+
+    function createCharts() {
+      const speedCtx = document.getElementById('speedChart').getContext('2d');
+      const fuelCtx = document.getElementById('fuelChart').getContext('2d');
+      const distanceCtx = document.getElementById('distanceChart').getContext('2d');
+
+      const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+
+      speedChart = new Chart(speedCtx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: vehicleListData.map(v => ({
+            label: `${v.id} Speed (km/h)`,
+            data: labels.map(() => Math.floor(40 + Math.random() * 60)),
+            borderColor: getRandomColor(),
+            backgroundColor: 'rgba(0,0,0,0)',
+            tension: 0.3,
+            fill: false,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+          }))
+        },
+        options: chartOptions('Speed (km/h)')
+      });
+
+      fuelChart = new Chart(fuelCtx, {
+        type: 'bar',
+        data: {
+          labels: vehicleListData.map(v => v.id),
+          datasets: [{
+            label: 'Fuel Consumption (L)',
+            data: vehicleListData.map(v => v.fuel),
+            backgroundColor: vehicleListData.map(() => getRandomColor(0.7)),
+            borderColor: vehicleListData.map(() => getRandomColor(1)),
+            borderWidth: 1
+          }]
+        },
+        options: chartOptions('Liters')
+      });
+
+      distanceChart = new Chart(distanceCtx, {
+        type: 'bar',
+        data: {
+          labels: vehicleListData.map(v => v.id),
+          datasets: [{
+            label: 'Distance Covered (km)',
+            data: vehicleListData.map(v => v.distance),
+            backgroundColor: vehicleListData.map(() => getRandomColor(0.7)),
+            borderColor: vehicleListData.map(() => getRandomColor(1)),
+            borderWidth: 1
+          }]
+        },
+        options: chartOptions('Kilometers')
+      });
+    }
+
+    function chartOptions(yLabel) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { color: 'white', font: { family: 'Inter' } }
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: 'white', font: { family: 'Inter' } },
+            grid: { color: 'rgba(255,255,255,0.1)' }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: 'white', font: { family: 'Inter' } },
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            title: {
+              display: true,
+              text: yLabel,
+              color: 'white',
+              font: { family: 'Inter', weight: 'bold' }
+            }
+          }
+        }
+      };
+    }
+
+    // Utility: random color generator for charts
+    function getRandomColor(alpha=1) {
+      const r = Math.floor(Math.random()*200)+30;
+      const g = Math.floor(Math.random()*200)+30;
+      const b = Math.floor(Math.random()*200)+30;
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    // Track vehicle by ID and update map & data dynamically
+    function trackByVehicleId() {
+      const vehicleInput = document.getElementById('vehicleInput').value.trim().toUpperCase();
+      if (!vehicleInput) {
+        alert('Please enter a Vehicle ID.');
+        return;
+      }
+
+      // Find vehicle in list
+      const vehicle = vehicleListData.find(v => v.id === vehicleInput);
+      if (!vehicle) {
+        alert('Vehicle ID not found in fleet.');
+        return;
+      }
+
+      // Simulate real-time location update near LPU (Lovely Professional University)
+      // We'll generate a random location within ~1km radius of LPU
+      const randomOffset = () => (Math.random() - 0.5) * 0.018; // ~1km in lat/lng degrees
+      const lat = lpuLatLng[0] + randomOffset();
+      const lng = lpuLatLng[1] + randomOffset();
+
+      vehicleMarker.setLatLng([lat, lng]);
+      map.setView([lat, lng], 15);
+      vehicleMarker.bindPopup(`Vehicle ${vehicle.id} located at [${lat.toFixed(5)}, ${lng.toFixed(5)}]<br>Status: ${vehicle.status}<br>Driver: ${vehicle.driver}`).openPopup();
+
+      // Update vehicle status randomly for demo
+      vehicle.speed = Math.floor(Math.random() * 100);
+      vehicle.fuel = Math.max(0, vehicle.fuel - Math.random() * 2);
+      vehicle.distance += Math.floor(Math.random() * 10);
+
+      // Update alerts dynamically
+      updateAlerts(vehicle);
+
+      // Update lists and charts with new data
+      populateLists();
+      updateCharts();
+    }
+
+    // Update alerts based on vehicle status
+    function updateAlerts(vehicle) {
+      // Clear old alerts for this vehicle
+      for (let i = alertsData.length - 1; i >= 0; i--) {
+        if (alertsData[i].includes(vehicle.id)) alertsData.splice(i, 1);
+      }
+
+      // Add new alerts based on speed and fuel
+      if (vehicle.speed > 80) {
+        alertsData.unshift(`Speeding Alert: ${vehicle.id} at ${vehicle.speed} km/h`);
+      }
+      if (vehicle.fuel < 5) {
+        alertsData.unshift(`Fuel Low Alert: ${vehicle.id} below 5 liters`);
+      }
+      if (vehicle.status === 'Inactive') {
+        alertsData.unshift(`Idle Alert: ${vehicle.id} is inactive`);
+      }
+
+      // Limit alerts to 10
+      if (alertsData.length > 10) alertsData.length = 10;
+    }
+
+    // Update charts with current vehicle data
+    function updateCharts() {
+      if (!speedChart || !fuelChart || !distanceChart) return;
+
+      // Update speed chart datasets with current speeds
+      speedChart.data.datasets.forEach(ds => {
+        const vehicleId = ds.label.split(' ')[0];
+        const vehicle = vehicleListData.find(v => v.id === vehicleId);
+        if (vehicle) {
+          ds.data.shift();
+          ds.data.push(vehicle.speed);
+        }
+      });
+      speedChart.update();
+
+      // Update fuel chart
+      fuelChart.data.datasets[0].data = vehicleListData.map(v => Math.max(0, v.fuel.toFixed(1)));
+      fuelChart.update();
+
+      // Update distance chart
+      distanceChart.data.datasets[0].data = vehicleListData.map(v => v.distance);
+      distanceChart.update();
+    }
+
+    // Geofence setting simulation
+    function setGeofence() {
+      alert('Geofence set around the current location. Alerts will be triggered upon breach.');
+    }
+
+    // Fleet manager controls
+    function sendMaintenanceReminder() {
+      alert('Maintenance reminders sent to all vehicles with upcoming maintenance.');
+    }
+
+    function generateReport() {
+      alert('Fleet report generated and sent to your email.');
+    }
+
+    function refreshAllData() {
+      alert('Refreshing all fleet data...');
+      // Simulate data refresh by randomizing some values
+      vehicleListData.forEach(v => {
+        v.speed = Math.floor(Math.random() * 100);
+        v.fuel = Math.max(0, 15 - Math.random() * 15);
+        v.distance += Math.floor(Math.random() * 20);
+      });
+      populateLists();
+      updateCharts();
+    }
+
+    // Initial population and chart creation
+    populateLists();
+    createCharts();
   </script>
 </body>
 </html>
